@@ -129,6 +129,9 @@ Do not omit older models simply because upstream marks them superseded; model-si
 
 ### system-one — mpuig
 
+> **Excluded (2026-09-26):** its letter readout caps Choice at 26 options, and every
+> contestant must handle 77 (see Engineering Rules). Kept disabled in `config/models.yaml`.
+
 Repository:
 
 https://github.com/mpuig/system-one
@@ -153,6 +156,9 @@ Include the published ModernBERT-base model, currently approximately 149M parame
 ---
 
 ### Reflex
+
+> **Excluded (2026-09-26):** its server caps Choice at 26 options, and every contestant
+> must handle 77 (see Engineering Rules). Kept disabled in `config/models.yaml`.
 
 Repository:
 
@@ -185,6 +191,9 @@ Include it as a large-model comparator.
 These must also be benchmarked because the experiment is not limited to specially trained decision models.
 
 ### SemIf
+
+> **Excluded (2026-09-26):** its scorer accepts at most 16 options, and every contestant
+> must handle 77 (see Engineering Rules). Kept disabled in `config/models.yaml`.
 
 https://github.com/tseanard/SemIf
 
@@ -717,6 +726,9 @@ A CLI and generated reports are sufficient.
 - A failed model must not abort the entire benchmark.
 - Log failures and continue.
 - Make adding a new contestant require minimal code/configuration.
+- Every contestant must answer Choice questions with at least 77 options (Banking77).
+  A model that can't is disabled in `config/models.yaml` (`enabled: false` plus a
+  `blocker:` giving its limit), not benchmarked with refusals counted as wrong.
 
 ---
 
