@@ -12,6 +12,8 @@ warn() { printf '  ! %s\n' "$*"; fail=1; }
 
 step "1. Verify OS, Python, uv, git, CUDA / NVIDIA tooling"
 uname -a
+# uv's installer drops the binary here but only fixes PATH for new shells
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 command -v uv  >/dev/null && uv --version  || { echo "uv missing: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 1; }
 command -v git >/dev/null && git --version || { echo "git missing"; exit 1; }
 if command -v nvidia-smi >/dev/null; then
