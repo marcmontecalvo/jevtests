@@ -8,7 +8,7 @@ from itertools import combinations
 from pathlib import Path
 
 from harness import metrics as M
-from harness.config import REPORTS, benchmark_config
+from harness.config import REPORTS, benchmark_config, model_specs
 from harness.db import DB
 from harness.schema import Case, predicted_key
 
@@ -38,9 +38,12 @@ class RunData:
         self.db, self.run_id = db, run_id
         self.cases = {r["case_id"]: Case.from_dict(json.loads(r["data"]))
                       for r in db.query("SELECT case_id, data FROM cases")}
+        # models disabled in config since the run (enabled: false) are dropped from reports
+        disabled = {n for n, m in model_specs().items() if not m["enabled"]}
         self.models = {r["model"]: {**dict(r), "spec": json.loads(r["spec"] or "{}"),
                                     "provenance": json.loads(r["provenance"] or "{}")}
-                       for r in db.query("SELECT * FROM models WHERE run_id=?", (run_id,))}
+                       for r in db.query("SELECT * FROM models WHERE run_id=?", (run_id,))
+                       if r["model"] not in disabled}
         self.recs = defaultdict(list)   # (model, mode) -> records
         for r in db.query("SELECT * FROM predictions WHERE run_id=?", (run_id,)):
             case = self.cases.get(r["case_id"])

@@ -96,6 +96,8 @@ models:
 
   # ---------------------------------------------------------------- other razorback16/openjev backends
   verdict-modernbert-151m:
+    enabled: false
+    blocker: "Dropped: server caps Choice at 24 options (HTTP 400); Banking77 needs 77."
     upstream: openjev
     params: 151.0e6
     hf: [heman10x/rlcd-modernbert-151m]
@@ -183,6 +185,8 @@ models:
 
   # ---------------------------------------------------------------- mpuig/system-one (Apple MLX engine)
   sysone-smollm2-135m:
+    enabled: false
+    blocker: "Dropped: structured-v1 letter readout caps Choice at 26 options (HTTP 422); also rejects states >2048 tokens; Banking77 needs 77."
     upstream: system-one
     params: 135.0e6
     hf: [HuggingFaceTB/SmolLM2-135M]
@@ -190,6 +194,8 @@ models:
     health_path: /health
     notes: "MLX-only engine; on Linux needs mlx[cuda13] (installed by env_setup). Unsupported on Windows."
   sysone-qwen3-0.6b:
+    enabled: false
+    blocker: "Dropped: structured-v1 letter readout caps Choice at 26 options (HTTP 422); also rejects states >2048 tokens; Banking77 needs 77."
     upstream: system-one
     params: 0.6e9
     hf: [Qwen/Qwen3-0.6B]
@@ -197,6 +203,8 @@ models:
     health_path: /health
     notes: "MLX-only engine; on Linux needs mlx[cuda13]. Uses upstream's published temperature file."
   sysone-minicpm5-2b-q8:
+    enabled: false
+    blocker: "Dropped: same engine as the other sysone models: Choice capped at 26 options; Banking77 needs 77."
     upstream: system-one
     params: 2.0e9
     quantization: 8-bit (MLX fused)
@@ -214,17 +222,23 @@ models:
 
   # ---------------------------------------------------------------- Reflex (frozen Qwen3.5 + order averaging)
   reflex-qwen3.5-4b-stable:
+    enabled: false
+    blocker: "Dropped: server validation caps Choice at 26 options (HTTP 422); Banking77 needs 77."
     upstream: reflex
     params: 4.0e9
     hf: [Qwen/Qwen3.5-4B]
     serve: "{bin}/reflex-serve --stable --port {port}"
     notes: "Upstream `stable` config (serving/stable.json): markdown prompt, 2 permutations averaged."
   reflex-qwen3.5-0.8b:
+    enabled: false
+    blocker: "Dropped: server validation caps Choice at 26 options (HTTP 422); Banking77 needs 77."
     upstream: reflex
     params: 0.8e9
     hf: [Qwen/Qwen3.5-0.8B]
     serve: "{bin}/reflex-serve --model Qwen/Qwen3.5-0.8B --permutations 2 --port {port}"
   reflex-qwen3.8-27b:
+    enabled: false
+    blocker: "Dropped: same server as the other reflex models: Choice capped at 26 options; Banking77 needs 77."
     upstream: reflex
     params: 27.0e9
     hf: [Qwen/Qwen3.8-27B]
@@ -253,12 +267,16 @@ models:
 
   # ---------------------------------------------------------------- SemIf (frozen LLM, option-letter logits; wrapped)
   semif-qwen3.5-4b:
+    enabled: false
+    blocker: "Dropped: SemIf scorer accepts 2-16 options per question; Banking77 needs 77."
     upstream: semif
     params: 4.0e9
     hf: [Qwen/Qwen3.5-4B]
     serve: "{python} {root}/adapters/local/semif_server.py --model Qwen/Qwen3.5-4B --revision 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a --port {port}"
     notes: "Batch CLI upstream; served by adapters/local/semif_server.py. Score questions are our extension (upstream excludes Score)."
   semif-minicpm5-2b:
+    enabled: false
+    blocker: "Dropped: SemIf scorer accepts 2-16 options per question; Banking77 needs 77."
     upstream: semif
     params: 2.0e9
     hf: [openbmb/MiniCPM5-2B]
