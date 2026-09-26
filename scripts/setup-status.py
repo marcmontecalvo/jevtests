@@ -82,7 +82,10 @@ def main() -> None:
             L.append(f"| {p} (harness) | missing |")
     L += ["", "Per-upstream venvs (`envs/`):", "", "| Upstream | torch | CUDA | transformers | other |",
           "|---|---|---|---|---|"]
-    for name in cfg["upstreams"]:
+    for name, up in cfg["upstreams"].items():
+        if not up.get("env_setup"):
+            L.append(f"| {name} | not served (data/reference, or via another upstream) | | | |")
+            continue
         v = env_versions(str(ENVS / name)) if (ENVS / name).exists() else None
         if v is None:
             L.append(f"| {name} | not built | | | |")

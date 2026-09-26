@@ -63,21 +63,22 @@ def percentile(xs: list[float], q: float) -> float | None:
 
 
 def summarize(records: list[dict]) -> dict:
-    """Accuracy + calibration summary over answered (non-error) records."""
+    """Accuracy counts errors/refusals as wrong (so models can't skip hard cases);
+    `coverage` says how many were answered. Calibration and MAE use answered records."""
     ok = [r for r in records if r.get("pred_key") is not None]
     by_type = defaultdict(list)
-    for r in ok:
+    for r in records:
         by_type[r["type"]].append(r)
-    out = {"n": len(records), "answered": len(ok), "errors": len(records) - len(ok)}
+    out = {"n": len(records), "answered": len(ok), "errors": len(records) - len(ok),
+           "coverage": len(ok) / len(records) if records else None}
     for t in ("choice", "noul", "score"):
         rs = by_type.get(t, [])
         out[f"{t}_n"] = len(rs)
-        out[f"{t}_acc"] = mean([float(r["correct"]) for r in rs])
-    score = by_type.get("score", [])
-    errs = [r["abs_error"] for r in score if r.get("abs_error") is not None]
+        out[f"{t}_acc"] = mean([float(bool(r.get("correct"))) for r in rs])
+    errs = [r["abs_error"] for r in by_type.get("score", []) if r.get("abs_error") is not None]
     out["score_mae"] = mean(errs)
     out["score_rmse"] = math.sqrt(mean([e * e for e in errs])) if errs else None
-    out["accuracy"] = mean([float(r["correct"]) for r in ok])
+    out["accuracy"] = mean([float(bool(r.get("correct"))) for r in records])
     with_probs = [r for r in ok if r.get("probs")]
     out["brier"] = mean([brier(r["probs"], r["expected_key"], r.get("keys")) for r in with_probs])
     out["nll"] = mean([nll(r["probs"], r["expected_key"]) for r in with_probs])

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -39,10 +40,9 @@ def gpus() -> list[dict]:
 
 
 def cuda_version() -> str | None:
-    out = _run(["nvidia-smi"])
-    for token in out.split("CUDA Version:")[1:2]:
-        return token.split()[0]
-    return None
+    # "CUDA Version: 13.0" (older drivers) or "CUDA UMD Version: 13.3" (newer)
+    m = re.search(r"CUDA (?:UMD )?Version:\s*([\d.]+)", _run(["nvidia-smi"]))
+    return m.group(1) if m else None
 
 
 def host() -> dict:

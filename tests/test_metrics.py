@@ -40,10 +40,12 @@ def test_summarize_mixed_types_and_errors():
         {"type": "choice", "pred_key": None},    # error
     ]
     s = M.summarize(recs)
-    assert s["n"] == 5 and s["errors"] == 1
-    assert s["choice_acc"] == 0.5 and s["noul_acc"] == 1.0 and s["score_acc"] == 0.0
+    assert s["n"] == 5 and s["errors"] == 1 and s["coverage"] == 0.8
+    # the errored choice counts as wrong: a model can't raise accuracy by refusing
+    assert s["choice_acc"] == pytest.approx(1 / 3)
+    assert s["noul_acc"] == 1.0 and s["score_acc"] == 0.0
     assert s["score_mae"] == pytest.approx(0.6) and s["score_rmse"] == pytest.approx(0.6)
-    assert s["accuracy"] == 0.5
+    assert s["accuracy"] == pytest.approx(0.4)
 
 
 def test_order_robustness():

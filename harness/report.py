@@ -214,14 +214,16 @@ def build(db: DB, run_id: str) -> Path:
 def render_md(run_id: str, d: RunData, summ: list[dict], hl: dict) -> str:
     L = [f"# Benchmark report — `{run_id}`", "",
          "Ground truth is dataset labels; Jev is a contestant, not a reference.", "",
-         "| Model | Params | Choice Acc | Noul Acc | Score MAE | Brier | ECE | p50 ms | p95 ms | VRAM Δ MB | Status |",
-         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
+         "| Model | Params | Choice Acc | Noul Acc | Score MAE | Brier | ECE | p50 ms | p95 ms | VRAM Δ MB | Coverage | Status |",
+         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
     for s in summ:
         L.append(f"| {s['model']} | {_params(s['params'])} | {_f(s['choice_acc'])} | "
                  f"{_f(s['noul_acc'])} | {_f(s['score_mae'], '{:.2f}')} | {_f(s['brier'])} | "
                  f"{_f(s['ece'])} | {_f(s['p50_ms'], '{:.0f}')} | {_f(s['p95_ms'], '{:.0f}')} | "
-                 f"{_f(s['gpu_mem_delta_mb'] or s['peak_proc_rss_mb'], '{:.0f}')} | {s['status']} |")
-    L += ["", "Brier: multi-class (noul as 2-class). ECE: top-label confidence, 10 bins. "
+                 f"{_f(s['gpu_mem_delta_mb'] or s['peak_proc_rss_mb'], '{:.0f}')} | "
+                 f"{_f(s['coverage'], '{:.0%}')} | {s['status']} |")
+    L += ["", "Accuracy counts errors/refusals as wrong; Coverage = share answered. "
+          "Brier: multi-class (noul as 2-class). ECE: top-label confidence, 10 bins. "
           "Latency: sequential warm requests. VRAM Δ: peak GPU memory over baseline "
           "(falls back to server RSS where the GPU reports N/A, e.g. unified memory).", "",
           "## Robustness", "",
