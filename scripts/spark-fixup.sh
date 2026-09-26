@@ -19,8 +19,8 @@ else
   echo "  ok ($HF_CACHE)"
 fi
 
-step "2. Rebuild kev, litjev, system-one venvs"
-uv run python scripts/setup-envs.py --upstream kev litjev system-one || fail=1
+step "2. Rebuild the small-group venvs (uv-managed Python with headers, GPU-correct torch)"
+uv run python scripts/setup-envs.py --group small || fail=1
 
 step "3. GPU check of every venv"
 uv run python scripts/setup-envs.py --verify || fail=1

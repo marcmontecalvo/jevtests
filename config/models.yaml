@@ -33,23 +33,23 @@ upstreams:
                     env_setup: "uv sync --frozen --extra serve && uv pip install -p {env} torch==2.8.0 --torch-backend=cu129 --reinstall-package torch"}
   # upstream uv.lock is stale (missing workspace member), so install from pyproject; MLX via its CUDA 13 backend
   system-one:      {repo: https://github.com/mpuig/system-one,               dir: mpuig_system-one,
-                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e . mlx[cuda13]"}
+                    env_setup: "uv venv --clear {env} -p 3.12 && uv pip install -p {env} -e . mlx[cuda13]"}
   system-one-model: {repo: https://github.com/mateolafalce/system-one-model, dir: mateolafalce_system-one-model}
   reflex:          {repo: https://github.com/kshetrajna12/reflex,            dir: kshetrajna12_reflex,
                     env_setup: "uv sync --frozen"}
   openjev:         {repo: https://github.com/razorback16/openjev,            dir: razorback16_openjev,
-                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e .[laya,verdict] torch"}
+                    env_setup: "uv venv --clear {env} -p 3.12 && uv pip install -p {env} -e .[laya,verdict] torch"}
   open-jev:        {repo: https://github.com/Zefan-Cai/Open-Jev,             dir: Zefan-Cai_Open-Jev,
-                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e .[train]"}
+                    env_setup: "uv venv --clear {env} -p 3.12 && uv pip install -p {env} -e .[train]"}
   semif:           {repo: https://github.com/tseanard/SemIf,                 dir: tseanard_SemIf,
-                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e . fastapi uvicorn"}
+                    env_setup: "uv venv --clear {env} -p 3.12 && uv pip install -p {env} -e . fastapi uvicorn"}
   # litjev's lock pins torch 2.11 +cu128; use the cu130 build of the same version (GB10 / CUDA 13 driver)
   litjev:          {repo: https://github.com/zhengxuyu/litjev,               dir: zhengxuyu_litjev,
                     env_setup: "uv sync --frozen && uv pip install -p {env} torch==2.11.0 torchvision==0.26.0 --torch-backend=cu130 --reinstall-package torch --reinstall-package torchvision"}
   simple-jev:      {repo: https://github.com/featherless-ai/simple-jev,      dir: featherless-ai_simple-jev,
-                    env_setup: "uv venv {env} -p 3.13 && uv pip install -p {env} -e ./hf-server torch"}
+                    env_setup: "uv venv --clear {env} -p 3.13 && uv pip install -p {env} -e ./hf-server torch"}
   local-jev:       {repo: https://github.com/amithgc/local-jev,              dir: amithgc_local-jev,
-                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e ."}
+                    env_setup: "uv venv --clear {env} -p 3.12 && uv pip install -p {env} -e ."}
   jev-local:       {repo: https://github.com/us/jev-local,                   dir: us_jev-local,
                     env_setup: "uv sync --frozen --extra hf"}
   openjev-sglang:  {repo: https://github.com/ekzhang/openjev-sglang,         dir: ekzhang_openjev-sglang,

@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -67,7 +68,11 @@ def build_env(name: str, up: dict) -> bool:
     cmd = up["env_setup"].format(env=env_dir)
     env = {**os.environ, "UV_PROJECT_ENVIRONMENT": str(env_dir), "UV_TORCH_BACKEND": "auto"}
     env.pop("VIRTUAL_ENV", None)   # set by `uv run`; would make uv warn about the harness venv
+    # uv-managed CPython ships Python.h; distro pythons often don't (python3.x-dev), and
+    # Triton JIT-compiles a C launcher at runtime -> "fatal error: Python.h" otherwise.
+    env["UV_PYTHON_PREFERENCE"] = "only-managed"
     print(f"build {name}: {cmd}")
+    shutil.rmtree(env_dir, ignore_errors=True)   # clean rebuild: never inherit an old interpreter
     r = subprocess.run(cmd, shell=True, cwd=UPSTREAM / up["dir"], env=env)
     if r.returncode:
         print(f"FAIL  {name} (build)")
@@ -83,6 +88,10 @@ def verify_env(name: str) -> bool:
         lib = f"mlx {v.get('mlx', '?')} on {v['mlx_device']}"
     else:
         lib = "no torch/mlx"
+    if v.get("python_headers") is False:
+        print(f"FAIL  {name}: venv Python has no headers (Python.h); Triton kernels will fail to build."
+              f" Rebuild: uv run python scripts/setup-envs.py --upstream {name}")
+        return False
     if v.get("gpu_ok"):
         print(f"ok    {name}: {lib}, GPU kernel ok {v.get('capability', '')}")
         return True

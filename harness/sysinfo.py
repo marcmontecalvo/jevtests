@@ -56,8 +56,8 @@ def host() -> dict:
 
 
 _VERSIONS = r"""
-import json, importlib.metadata as m
-out = {}
+import json, os, sysconfig, importlib.metadata as m
+out = {"python_headers": os.path.exists(os.path.join(sysconfig.get_paths()["include"], "Python.h"))}
 for p in ("torch", "transformers", "peft", "sglang", "vllm", "mlx", "mlx-lm", "accelerate"):
     try: out[p] = m.version(p)
     except Exception: pass
