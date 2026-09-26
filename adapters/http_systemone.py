@@ -57,6 +57,8 @@ class HttpSystemOne(DecisionModel):
         self.load_s = time.perf_counter() - t0
 
     def _launch(self) -> None:
+        if self.spec.get("stop"):   # clear a leftover (e.g. container) from a crashed run
+            subprocess.run(expand(self.spec["stop"], self.spec), shell=True, capture_output=True)
         port = free_port()
         self.base_url = f"http://127.0.0.1:{port}"
         cmd = expand(self.spec["serve"], self.spec, port)
@@ -106,6 +108,9 @@ class HttpSystemOne(DecisionModel):
                         os.killpg(self.proc.pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
+        if self.spec.get("stop"):
+            # e.g. `docker rm -f ...`: killing the docker CLI doesn't always stop the container
+            subprocess.run(expand(self.spec["stop"], self.spec), shell=True, capture_output=True)
 
     def server_pid(self) -> int | None:
         return self.proc.pid if self.proc else None

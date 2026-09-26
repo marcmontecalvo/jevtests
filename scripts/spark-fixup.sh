@@ -3,6 +3,7 @@
 # fixes HF cache ownership, rebuilds the venvs whose torch/MLX builds changed,
 # GPU-checks every venv, prepares datasets and refreshes reports/SETUP_STATUS.md.
 # Run after `git pull`:   ./scripts/spark-fixup.sh
+#   SKIP_DOCKER=1 ./scripts/spark-fixup.sh   # skip the (slow) openjev vLLM image builds
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
@@ -28,14 +29,25 @@ uv run python scripts/setup-envs.py --verify || fail=1
 step "4. Prepare datasets"
 uv run python scripts/prepare-datasets.py || fail=1
 
-step "5. Refresh reports/SETUP_STATUS.md"
+step "5. Docker images for clm / jevk5 / diffusiongemma (vLLM)"
+if [ "${SKIP_DOCKER:-0}" = 1 ]; then
+  echo "  skipped (SKIP_DOCKER=1)"
+elif ! command -v docker >/dev/null; then
+  echo "  ! docker not found; clm/jevk5/diffusiongemma will fail to load"; fail=1
+else
+  ./infra/docker/build-openjev-images.sh jevk5 clm || fail=1   # diffusiongemma is large-group
+fi
+
+step "6. Smoke benchmark (resumes run 'smoke': only retries what failed)"
+uv run python scripts/download-models.py --group small || fail=1
+uv run python scripts/run-benchmark.py --run smoke --group small --limit 4 --modes accuracy,latency || fail=1
+
+step "7. Refresh reports/SETUP_STATUS.md"
 uv run python scripts/setup-status.py || fail=1
 
 echo
 if [ "$fail" = 0 ]; then
-  echo "all good. next:"
-  echo "  uv run python scripts/download-models.py --group small"
-  echo "  uv run python scripts/run-benchmark.py --run smoke --group small --limit 4 --modes accuracy,latency"
+  echo "all good. see reports/smoke/summary.md and reports/SETUP_STATUS.md"
 else
   echo "finished with problems - paste the output above (especially step 3)"
 fi

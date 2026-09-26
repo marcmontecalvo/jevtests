@@ -204,8 +204,13 @@ def build(db: DB, run_id: str) -> Path:
         write_csv(out / f"highlight_{kind}.csv", rows)
     write_csv(out / "throughput.csv", [dict(r) for r in db.query(
         "SELECT * FROM throughput WHERE run_id=?", (run_id,))])
+    # current errors only: predictions still unanswered + models whose latest load failed
+    # (the errors table is an append-only log and keeps errors later fixed by a resume)
     write_csv(out / "errors.csv", [dict(r) for r in db.query(
-        "SELECT model, case_id, stage, message FROM errors WHERE run_id=?", (run_id,))])
+        "SELECT model, case_id, mode AS stage, error AS message FROM predictions "
+        "WHERE run_id=? AND error IS NOT NULL UNION ALL "
+        "SELECT model, NULL, 'load', error FROM models "
+        "WHERE run_id=? AND status='load_failed'", (run_id, run_id))])
 
     (out / "summary.md").write_text(render_md(run_id, d, summ, hl), encoding="utf-8")
     return out

@@ -24,6 +24,10 @@ class Fake(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         SEEN.append((self.headers.get("Authorization"), body))
         q = body["questions"]["q"]
+        if body["model"] == "reject":   # e.g. litjev refusing an unknown model id
+            self.send_response(422)
+            self.end_headers()
+            return
         if q["type"] == "noul":
             ans = {"type": "noul", "noul": 0.9}
         elif q["type"] == "choice":
@@ -74,11 +78,13 @@ def test_run_resume_and_report(tmp_path, server, monkeypatch):
     specs = [{"name": "fake", "kind": "http", "base_url": server, "params": 1e8,
               "health_path": "/", "request_timeout_s": 10},
              {"name": "broken", "kind": "http", "base_url": "http://127.0.0.1:9",
-              "startup_timeout_s": 1, "params": 3e10}]
+              "startup_timeout_s": 1, "params": 3e10},
+             {"name": "rejecting", "kind": "http", "base_url": server, "params": 2e8,
+              "health_path": "/", "request_model": "reject"}]
     modes = ("accuracy", "order", "latency", "throughput")
     SEEN.clear()
     status = asyncio.run(run_benchmark(db, "r1", specs, cs, bench, modes))
-    assert status == {"fake": "done", "broken": "load_failed"}   # failure isolated
+    assert status == {"fake": "done", "broken": "load_failed", "rejecting": "no_answers"}
     first_pass = len(SEEN)
 
     # resume: only the errored score case is retried (plus throughput is not re-run)
@@ -93,6 +99,10 @@ def test_run_resume_and_report(tmp_path, server, monkeypatch):
     assert f["p50_ms"] is not None and f["max_decisions_per_s"] > 0
     assert summ["broken"]["status"] == "load_failed"
     assert "fake" in (out / "summary.md").read_text(encoding="utf-8")
+    import csv
+    errs = list(csv.DictReader(open(out / "errors.csv", encoding="utf-8")))
+    assert {(e["model"], e["stage"]) for e in errs if e["model"] != "rejecting"} == {
+        ("fake", "accuracy"), ("fake", "latency"), ("broken", "load")}   # current errors only
 
 
 @pytest.mark.parametrize("provider,key_env,url_env", [

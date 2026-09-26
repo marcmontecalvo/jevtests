@@ -50,8 +50,9 @@ upstreams:
                     env_setup: "uv venv --clear {env} -p 3.13 && uv pip install -p {env} -e ./hf-server torch"}
   local-jev:       {repo: https://github.com/amithgc/local-jev,              dir: amithgc_local-jev,
                     env_setup: "uv venv --clear {env} -p 3.12 && uv pip install -p {env} -e ."}
+  # its [hf] extra omits accelerate, which transformers needs for device_map
   jev-local:       {repo: https://github.com/us/jev-local,                   dir: us_jev-local,
-                    env_setup: "uv sync --frozen --extra hf"}
+                    env_setup: "uv sync --frozen --extra hf && uv pip install -p {env} accelerate"}
   openjev-sglang:  {repo: https://github.com/ekzhang/openjev-sglang,         dir: ekzhang_openjev-sglang,
                     env_setup: "uv sync --frozen && uv pip install -p {env} sglang[all]"}
   jevlike:         {repo: https://github.com/vinnylarouge/jevlike,           dir: vinnylarouge_jevlike}
@@ -100,28 +101,35 @@ models:
     hf: [heman10x/rlcd-modernbert-151m]
     serve: "{python} -m openjev"
     env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: verdict}
+  # CLM, JevK5 and DiffusionGemma each need their own vLLM server, which upstream only ships
+  # as docker images. Build them once on the Spark: ./infra/docker/build-openjev-images.sh
+  # The harness starts/stops the container per model like any other server. Runs as your
+  # user (HF cache stays yours); vLLM/flashinfer compile caches persist in cache/docker.
   clm-qwen3-8b:
     upstream: openjev
     params: 8.0e9
-    hf: [Contrastive-LM/CLM-v0.1-8B]
-    serve: "{python} -m openjev"
-    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: clm}
-    notes: "Needs the `clm` package (github.com/Contrastive-LM/CLM) in the openjev env; see docker/Dockerfile.clm upstream."
+    hf: [Contrastive-LM/CLM-v0.1-8B, Qwen/Qwen3-8B-FP8]
+    serve: "docker run --rm --name jevtests-{name} --gpus all --ipc host -p 127.0.0.1:{port}:8080 --user $(id -u):$(id -g) -e HOME=/tmp -e HF_HOME=/hf -e HF_TOKEN -v ${{HF_HOME:-$HOME/.cache/huggingface}}:/hf -v {root}/cache/docker:/tmp/.cache -e OPENJEV_GPU_UTIL=0.25 razorback16/openjev-clm:0.5.0"
+    stop: "docker rm -f jevtests-{name}"
+    startup_timeout_s: 2400
+    notes: "Docker (vLLM pooling runner on Qwen3-8B-FP8 + CLM heads). Image from infra/docker/build-openjev-images.sh."
   jevk5-qwen3.5-4b:
     upstream: openjev
     params: 4.0e9
     hf: [alibiserikbay/JevK5]
-    serve: "{python} -m openjev"
-    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: jevk5}
-    notes: "Needs the `jevk5` package (github.com/allebee/jevk5) in the openjev env; see docker/Dockerfile.jevk5 upstream."
+    serve: "docker run --rm --name jevtests-{name} --gpus all --ipc host -p 127.0.0.1:{port}:8080 --user $(id -u):$(id -g) -e HOME=/tmp -e HF_HOME=/hf -e HF_TOKEN -v ${{HF_HOME:-$HOME/.cache/huggingface}}:/hf -v {root}/cache/docker:/tmp/.cache -e OPENJEV_GPU_UTIL=0.25 razorback16/openjev-jevk5:0.5.0"
+    stop: "docker rm -f jevtests-{name}"
+    startup_timeout_s: 2400
+    notes: "Docker (vLLM serving JevK5 letter logprobs). Image from infra/docker/build-openjev-images.sh."
   openjev-diffusiongemma-26b-a4b:
     upstream: openjev
     params: 26.0e9
     active_params: 4.0e9
     hf: [nvidia/diffusiongemma-26B-A4B-it-NVFP4]
-    base_url: http://127.0.0.1:8080
-    health_path: /health
-    notes: "Needs the patched vLLM stack: run `docker compose up` in upstream/razorback16_openjev (serves :8080), then benchmark. NVFP4 needs Blackwell (GB10 ok)."
+    serve: "docker run --rm --name jevtests-{name} --gpus all --ipc host -p 127.0.0.1:{port}:8080 --user $(id -u):$(id -g) -e HOME=/tmp -e HF_HOME=/hf -e HF_TOKEN -v ${{HF_HOME:-$HOME/.cache/huggingface}}:/hf -v {root}/cache/docker:/tmp/.cache -e OPENJEV_GPU_UTIL=0.6 razorback16/openjev:0.5.0"
+    stop: "docker rm -f jevtests-{name}"
+    startup_timeout_s: 3600
+    notes: "Docker (patched vLLM, NVFP4 needs Blackwell; flashinfer kernels compile ~4 min on first start). Image from infra/docker/build-openjev-images.sh."
 
   # ---------------------------------------------------------------- Kev (LoRA adapters; base pulled from card)
   kev-0.5b-qwen2.5:
@@ -260,16 +268,19 @@ models:
   # ---------------------------------------------------------------- LitJev (frozen Qwen3.x)
   litjev-qwen3.5-0.8b:
     upstream: litjev
+    request_model: litjev   # server rejects any other model id
     params: 0.8e9
     hf: [Qwen/Qwen3.5-0.8B]
     serve: "{bin}/litjev --model Qwen/Qwen3.5-0.8B --port {port}"
   litjev-qwen3.5-4b:
     upstream: litjev
+    request_model: litjev   # server rejects any other model id
     params: 4.0e9
     hf: [Qwen/Qwen3.5-4B]
     serve: "{bin}/litjev --model Qwen/Qwen3.5-4B --port {port}"
   litjev-qwen3.8-27b:
     upstream: litjev
+    request_model: litjev   # server rejects any other model id
     params: 27.0e9
     hf: [Qwen/Qwen3.8-27B]
     serve: "{bin}/litjev --model Qwen/Qwen3.8-27B --port {port}"

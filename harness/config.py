@@ -118,16 +118,27 @@ _HF_RE = re.compile(r"\{hf:([^}]+)\}")
 
 
 def expand(template: str, spec: dict, port: int | None = None) -> str:
-    """Fill {python} {bin} {port} {root} {dir} {env} {hf:REPO} in a command template."""
-    def hf_path(m):
-        from huggingface_hub import snapshot_download
-        return snapshot_download(m.group(1), local_files_only=True)
-
-    s = _HF_RE.sub(hf_path, template)
+    """Fill {python} {bin} {port} {root} {dir} {env} {name} {hf:REPO} in a command template.
+    Literal shell braces must be doubled: ${{HF_HOME}}."""
+    s = _HF_RE.sub(lambda m: hf_snapshot(m.group(1)), template)
     env_dir = spec.get("env_dir", "")
     return s.format(
         python=env_python(env_dir) if env_dir else sys.executable,
         bin=env_bin(env_dir) if env_dir else "",
         port=port if port is not None else "",
-        root=ROOT, dir=spec.get("upstream_dir", ""), env=env_dir,
+        root=ROOT, dir=spec.get("upstream_dir", ""), env=env_dir, name=spec.get("name", ""),
     )
+
+
+def hf_snapshot(repo: str) -> str:
+    """Local dir of a repo at the revision download-models.py pinned (cache/models.json).
+    download-models fetches by commit sha, which never writes refs/main, so a plain
+    local_files_only lookup of `main` fails even when the files are there."""
+    import json
+
+    from huggingface_hub import snapshot_download
+    manifest = CACHE / "models.json"
+    revs = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else {}
+    sha = revs.get(repo, {}).get("sha")
+    # pinned sha + cached -> no network; otherwise fetch (same as models that download at load)
+    return snapshot_download(repo, revision=sha)

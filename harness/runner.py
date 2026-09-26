@@ -149,6 +149,11 @@ class ModelRun:
                                           f"{type(e).__name__}: {e}")
             finally:
                 await self.adapter.unload()
+            answered, total = self.db.query(
+                "SELECT COUNT(*) FILTER (WHERE error IS NULL), COUNT(*) FROM predictions "
+                "WHERE run_id=? AND model=? AND mode='accuracy'", (self.run_id, self.name))[0]
+            if total and not answered:
+                status = "no_answers"   # served, but every request errored (see errors.csv)
             self.db.upsert_model(self.run_id, self.name,
                                  provenance={**prov, **self.adapter.provenance}, status=status)
             return status
