@@ -1,0 +1,338 @@
+# Contestant registry. Adding a model = adding an entry here.
+#
+# Every local contestant is served over the Jev wire format (POST /v1/systemone)
+# by its upstream's own server, running in its own venv (envs/<upstream>).
+# The harness only speaks HTTP, so one crashing model never takes down a run.
+#
+# Command templates (serve / env_setup) may use:
+#   {python}  venv python        {bin}   venv scripts dir     {port}  free port chosen at load
+#   {root}    this repo          {dir}   upstream checkout    {env}   venv path
+#   (templates also expand inside `env` values)
+#   {hf:ORG/NAME}  local snapshot dir of a downloaded HF repo (scripts/download-models.py)
+#
+# Model fields:
+#   upstream     key into `upstreams` (omit for kind: cloud)
+#   params       total parameters (active params in `active_params` for MoE)
+#   hf           HF repos to download; base models named in a repo's card are added automatically
+#   serve        launch command; omit and set `base_url` to use an already-running server
+#   health_path  GET path polled until the server is ready (default /health)
+#   request_model  value sent as "model" in requests (default jev-latest)
+#   enabled: false + blocker: "..."  -> listed in SETUP_STATUS, never run
+#   notes        special handling, surfaced in SETUP_STATUS
+
+defaults:
+  request_model: jev-latest
+  health_path: /health
+  startup_timeout_s: 1200
+  request_timeout_s: 180
+
+upstreams:
+  laya:            {repo: https://github.com/he-jev/laya,                    dir: he-jev_laya}
+  kev:             {repo: https://github.com/jaredpalmer/kev,                dir: jaredpalmer_kev,
+                    env_setup: "uv sync --frozen --extra serve"}
+  system-one:      {repo: https://github.com/mpuig/system-one,               dir: mpuig_system-one,
+                    env_setup: "uv sync --frozen && uv pip install -p {env} mlx[cuda]"}
+  system-one-model: {repo: https://github.com/mateolafalce/system-one-model, dir: mateolafalce_system-one-model}
+  reflex:          {repo: https://github.com/kshetrajna12/reflex,            dir: kshetrajna12_reflex,
+                    env_setup: "uv sync --frozen"}
+  openjev:         {repo: https://github.com/razorback16/openjev,            dir: razorback16_openjev,
+                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e .[laya,verdict] torch"}
+  open-jev:        {repo: https://github.com/Zefan-Cai/Open-Jev,             dir: Zefan-Cai_Open-Jev,
+                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e .[train]"}
+  semif:           {repo: https://github.com/tseanard/SemIf,                 dir: tseanard_SemIf,
+                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e . fastapi uvicorn"}
+  litjev:          {repo: https://github.com/zhengxuyu/litjev,               dir: zhengxuyu_litjev,
+                    env_setup: "uv sync --frozen"}
+  simple-jev:      {repo: https://github.com/featherless-ai/simple-jev,      dir: featherless-ai_simple-jev,
+                    env_setup: "uv venv {env} -p 3.13 && uv pip install -p {env} -e ./hf-server torch"}
+  local-jev:       {repo: https://github.com/amithgc/local-jev,              dir: amithgc_local-jev,
+                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e ."}
+  jev-local:       {repo: https://github.com/us/jev-local,                   dir: us_jev-local,
+                    env_setup: "uv sync --frozen --extra hf"}
+  openjev-sglang:  {repo: https://github.com/ekzhang/openjev-sglang,         dir: ekzhang_openjev-sglang,
+                    env_setup: "uv sync --frozen && uv pip install -p {env} sglang[all]"}
+  jevlike:         {repo: https://github.com/vinnylarouge/jevlike,           dir: vinnylarouge_jevlike}
+  jevbench:        {repo: https://github.com/fstandhartinger/jevbench,       dir: fstandhartinger_jevbench}
+
+models:
+  # ---------------------------------------------------------------- hosted baseline
+  typesafe-jev-latest:
+    kind: cloud
+    params: null
+    request_model: jev-latest
+    notes: "Hosted. Base URL/key from JEV_BASE_URL / JEV_API_KEY. Served version recorded per response."
+
+  # ---------------------------------------------------------------- Laya (served via razorback16/openjev's laya backend)
+  laya-en-421m:
+    upstream: openjev
+    params: 421.0e6
+    hf: [convaiinnovations/laya]
+    serve: "{python} -m openjev"
+    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: laya, OPENJEV_LAYA_MODEL: convaiinnovations/laya}
+  laya-multilingual-322m:
+    upstream: openjev
+    params: 322.0e6
+    hf: [convaiinnovations/laya-multilingual]
+    serve: "{python} -m openjev"
+    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: laya, OPENJEV_LAYA_MODEL: convaiinnovations/laya-multilingual}
+  laya-typed-421m:
+    upstream: openjev
+    params: 421.0e6
+    hf: [convaiinnovations/laya-typed-decisions]
+    serve: "{python} -m openjev"
+    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: laya, OPENJEV_LAYA_MODEL: convaiinnovations/laya-typed-decisions}
+
+  # ---------------------------------------------------------------- other razorback16/openjev backends
+  verdict-modernbert-151m:
+    upstream: openjev
+    params: 151.0e6
+    hf: [heman10x/rlcd-modernbert-151m]
+    serve: "{python} -m openjev"
+    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: verdict}
+  clm-qwen3-8b:
+    upstream: openjev
+    params: 8.0e9
+    hf: [Contrastive-LM/CLM-v0.1-8B]
+    serve: "{python} -m openjev"
+    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: clm}
+    notes: "Needs the `clm` package (github.com/Contrastive-LM/CLM) in the openjev env; see docker/Dockerfile.clm upstream."
+  jevk5-qwen3.5-4b:
+    upstream: openjev
+    params: 4.0e9
+    hf: [alibiserikbay/JevK5]
+    serve: "{python} -m openjev"
+    env: {OPENJEV_PORT: "{port}", OPENJEV_BACKEND: jevk5}
+    notes: "Needs the `jevk5` package (github.com/allebee/jevk5) in the openjev env; see docker/Dockerfile.jevk5 upstream."
+  openjev-diffusiongemma-26b-a4b:
+    upstream: openjev
+    params: 26.0e9
+    active_params: 4.0e9
+    hf: [nvidia/diffusiongemma-26B-A4B-it-NVFP4]
+    base_url: http://127.0.0.1:8080
+    health_path: /health
+    notes: "Needs the patched vLLM stack: run `docker compose up` in upstream/razorback16_openjev (serves :8080), then benchmark. NVFP4 needs Blackwell (GB10 ok)."
+
+  # ---------------------------------------------------------------- Kev (LoRA adapters; base pulled from card)
+  kev-0.5b-qwen2.5:
+    upstream: kev
+    params: 0.5e9
+    hf: [jaredpalmer/kev-0.5b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-0.5b --port {port}"
+    health_path: /v1/models
+    notes: "Superseded upstream prototype; kept for size scaling."
+  kev-0.6b-qwen3:
+    upstream: kev
+    params: 0.6e9
+    hf: [jaredpalmer/kev-0.6b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-0.6b --port {port}"
+    health_path: /v1/models
+  kev-0.8b-qwen3.5:
+    upstream: kev
+    params: 0.8e9
+    hf: [jaredpalmer/kev-0.8b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-0.8b --port {port}"
+    health_path: /v1/models
+  kev-4b-qwen3.5:
+    upstream: kev
+    params: 4.0e9
+    hf: [jaredpalmer/kev-4b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-4b --port {port}"
+    health_path: /v1/models
+  kev-8b-qwen3:
+    upstream: kev
+    params: 8.0e9
+    hf: [jaredpalmer/kev-8b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-8b --port {port}"
+    health_path: /v1/models
+  kev-9b-qwen3.5:
+    upstream: kev
+    params: 9.0e9
+    hf: [jaredpalmer/kev-9b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-9b --port {port}"
+    health_path: /v1/models
+  kev-27b-qwen3.8:
+    upstream: kev
+    params: 27.0e9
+    hf: [jaredpalmer/kev-27b]
+    serve: "{python} -m kev.serve --run jaredpalmer/kev-27b --port {port}"
+    health_path: /v1/models
+  kev-4b-qwen3:
+    upstream: kev
+    params: 4.0e9
+    enabled: false
+    blocker: "Model card docs/model-cards/kev-4b-qwen3.md exists but no public HF repo was found."
+
+  # ---------------------------------------------------------------- mpuig/system-one (Apple MLX engine)
+  sysone-smollm2-135m:
+    upstream: system-one
+    params: 135.0e6
+    hf: [HuggingFaceTB/SmolLM2-135M]
+    serve: "{python} scripts/serve.py --model HuggingFaceTB/SmolLM2-135M --adapter adapters/smollm2-135m-structured-v1-rps --port {port}"
+    health_path: /health
+    notes: "MLX-only engine; on Linux needs mlx[cuda] (installed by env_setup). Unsupported on Windows."
+  sysone-qwen3-0.6b:
+    upstream: system-one
+    params: 0.6e9
+    hf: [Qwen/Qwen3-0.6B]
+    serve: "{python} scripts/serve.py --model Qwen/Qwen3-0.6B --adapter adapters/qwen3-0.6b-structured-v1-synthfiltered-rps --temperature release/temperature-qwen3-0.6b.json --port {port}"
+    health_path: /health
+    notes: "MLX-only engine; on Linux needs mlx[cuda]. Uses upstream's published temperature file."
+  sysone-minicpm5-2b-q8:
+    upstream: system-one
+    params: 2.0e9
+    quantization: 8-bit (MLX fused)
+    hf: [mpuig/system-one-minicpm5-2b-q8]
+    serve: "{python} scripts/serve.py --model {hf:mpuig/system-one-minicpm5-2b-q8} --temperature release/temperature-minicpm5-2b-q8.json --port {port}"
+    health_path: /health
+    notes: "MLX-only engine; on Linux needs mlx[cuda]. Uses upstream's published temperature file."
+
+  # ---------------------------------------------------------------- mateolafalce ModernBERT
+  modernbert-sysone-149m:
+    upstream: system-one-model
+    params: 149.0e6
+    enabled: false
+    blocker: "Trained checkpoint (artifacts/phase2/best) is not published in the repo or on HF. Must be trained with upstream scripts 01-05 (fits 8 GB) before it can be served by scripts/07_serve.py."
+
+  # ---------------------------------------------------------------- Reflex (frozen Qwen3.5 + order averaging)
+  reflex-qwen3.5-4b-stable:
+    upstream: reflex
+    params: 4.0e9
+    hf: [Qwen/Qwen3.5-4B]
+    serve: "{bin}/reflex-serve --stable --port {port}"
+    notes: "Upstream `stable` config (serving/stable.json): markdown prompt, 2 permutations averaged."
+  reflex-qwen3.5-0.8b:
+    upstream: reflex
+    params: 0.8e9
+    hf: [Qwen/Qwen3.5-0.8B]
+    serve: "{bin}/reflex-serve --model Qwen/Qwen3.5-0.8B --permutations 2 --port {port}"
+  reflex-qwen3.8-27b:
+    upstream: reflex
+    params: 27.0e9
+    hf: [Qwen/Qwen3.8-27B]
+    serve: "{bin}/reflex-serve --model Qwen/Qwen3.8-27B --permutations 2 --port {port}"
+    notes: "Upstream recommends its sglang backend for 27B; transformers backend used here for simplicity."
+
+  # ---------------------------------------------------------------- Open-Jev (Zefan Cai; LoRA packages)
+  open-jev-2b-qwen3.5:
+    upstream: open-jev
+    params: 2.0e9
+    hf: [ZefanCai/Open-Jev-2B]
+    serve: "{python} -m jev.server --checkpoint {hf:ZefanCai/Open-Jev-2B}/package/checkpoint --max-length 4096 --port {port}"
+    health_path: /
+  open-jev-9b-qwen3.5:
+    upstream: open-jev
+    params: 9.0e9
+    hf: [ZefanCai/Open-Jev-9B]
+    serve: "{python} -m jev.server --checkpoint {hf:ZefanCai/Open-Jev-9B}/package/checkpoint --max-length 4096 --port {port}"
+    health_path: /
+  open-jev-27b-v1.1:
+    upstream: open-jev
+    params: 27.0e9
+    hf: [ZefanCai/Open-Jev-27B-v1.1]
+    serve: "{python} -m jev.server --checkpoint {hf:ZefanCai/Open-Jev-27B-v1.1}/package/checkpoint --max-length 4096 --port {port}"
+    health_path: /
+
+  # ---------------------------------------------------------------- SemIf (frozen LLM, option-letter logits; wrapped)
+  semif-qwen3.5-4b:
+    upstream: semif
+    params: 4.0e9
+    hf: [Qwen/Qwen3.5-4B]
+    serve: "{python} {root}/adapters/local/semif_server.py --model Qwen/Qwen3.5-4B --revision 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a --port {port}"
+    notes: "Batch CLI upstream; served by adapters/local/semif_server.py. Score questions are our extension (upstream excludes Score)."
+  semif-minicpm5-2b:
+    upstream: semif
+    params: 2.0e9
+    hf: [openbmb/MiniCPM5-2B]
+    serve: "{python} {root}/adapters/local/semif_server.py --model openbmb/MiniCPM5-2B --port {port}"
+    notes: "Wrapped like semif-qwen3.5-4b. Score is our extension."
+
+  # ---------------------------------------------------------------- LitJev (frozen Qwen3.x)
+  litjev-qwen3.5-0.8b:
+    upstream: litjev
+    params: 0.8e9
+    hf: [Qwen/Qwen3.5-0.8B]
+    serve: "{bin}/litjev --model Qwen/Qwen3.5-0.8B --port {port}"
+  litjev-qwen3.5-4b:
+    upstream: litjev
+    params: 4.0e9
+    hf: [Qwen/Qwen3.5-4B]
+    serve: "{bin}/litjev --model Qwen/Qwen3.5-4B --port {port}"
+  litjev-qwen3.8-27b:
+    upstream: litjev
+    params: 27.0e9
+    hf: [Qwen/Qwen3.8-27B]
+    serve: "{bin}/litjev --model Qwen/Qwen3.8-27B --port {port}"
+
+  # ---------------------------------------------------------------- Simple Jev (featherless hf-server)
+  simplejev-qwen3.5-0.8b:
+    upstream: simple-jev
+    params: 0.8e9
+    hf: [Qwen/Qwen3.5-0.8B]
+    serve: "{python} hf-server/hf_server.py --model Qwen/Qwen3.5-0.8B --device cuda --dtype bfloat16 --max-model-len 8192 --max-choice-options 255 --port {port}"
+  simplejev-qwen3.5-4b:
+    upstream: simple-jev
+    params: 4.0e9
+    hf: [Qwen/Qwen3.5-4B]
+    serve: "{python} hf-server/hf_server.py --model Qwen/Qwen3.5-4B --device cuda --dtype bfloat16 --max-model-len 8192 --max-choice-options 255 --port {port}"
+  simplejev-gemma4-26b-a4b:
+    upstream: simple-jev
+    params: 26.0e9
+    active_params: 4.0e9
+    hf: [google/gemma-4-26B-A4B-it]
+    serve: "{python} hf-server/hf_server.py --model google/gemma-4-26B-A4B-it --device cuda --dtype bfloat16 --max-model-len 32768 --max-choice-options 255 --port {port}"
+
+  # ---------------------------------------------------------------- local-jev (amithgc)
+  localjev-nli-deberta-large:
+    upstream: local-jev
+    params: 435.0e6
+    hf: [MoritzLaurer/deberta-v3-large-zeroshot-v2.0]
+    serve: "{bin}/local-jev serve --model nli-deberta-large --port {port}"
+    health_path: /healthz
+  localjev-qwen2.5-1.5b:
+    upstream: local-jev
+    params: 1.5e9
+    serve: "{bin}/local-jev serve --model llm-qwen2.5-1.5b --port {port}"
+    health_path: /healthz
+  localjev-qwen3.5-2b:
+    upstream: local-jev
+    params: 2.0e9
+    serve: "{bin}/local-jev serve --model llm-qwen3.5-2b --port {port}"
+    health_path: /healthz
+  localjev-qwen3-4b:
+    upstream: local-jev
+    params: 4.0e9
+    serve: "{bin}/local-jev serve --model llm-qwen3-4b --port {port}"
+    health_path: /healthz
+  localjev-qwen3.5-4b:
+    upstream: local-jev
+    params: 4.0e9
+    serve: "{bin}/local-jev serve --model llm-qwen3.5-4b --port {port}"
+    health_path: /healthz
+
+  # ---------------------------------------------------------------- jev-local (us) — HF logprob scorer only
+  # Its default deterministic stub scorer is NOT a contestant (hash-based, not intelligent).
+  jevlocal-hf-qwen2.5-3b:
+    upstream: jev-local
+    params: 3.0e9
+    hf: [Qwen/Qwen2.5-3B-Instruct]
+    serve: "{python} -m uvicorn jevlocal.app:app --port {port}"
+    env: {JEVLOCAL_SCORER: hf, JEVLOCAL_MODEL: Qwen/Qwen2.5-3B-Instruct, JEVLOCAL_CHAT: "1"}
+  jevlocal-hf-qwen3.5-9b:
+    upstream: jev-local
+    params: 9.0e9
+    hf: [Qwen/Qwen3.5-9B]
+    serve: "{python} -m uvicorn jevlocal.app:app --port {port}"
+    env: {JEVLOCAL_SCORER: hf, JEVLOCAL_MODEL: Qwen/Qwen3.5-9B}
+
+  # ---------------------------------------------------------------- openjev-sglang (prefill-only, large MoE)
+  openjev-sglang-qwen3.6-35b-a3b:
+    upstream: openjev-sglang
+    params: 35.0e9
+    active_params: 3.0e9
+    hf: [Qwen/Qwen3.6-35B-A3B]
+    serve: "{bin}/openjev serve --port {port}"
+    env: {OPENJEV_SGLANG_PYTHON: "{python}"}
+    notes: "Supervises its own SGLang backend on :30000. Run isolated. sglang on aarch64/GB10 may need a container build."
+
+  # jevlike (vinnylarouge) is a training toolkit; its checkpoints are game-specific (doom/chess),
+  # not general Choice/Score/Noul contestants. Inspected, not benchmarked.

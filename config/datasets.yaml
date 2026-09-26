@@ -1,0 +1,69 @@
+# Benchmark datasets -> normalized cases (data/cases/<name>.jsonl, git-ignored).
+# Labels are preserved verbatim. For non-Jev datasets the wording of the question
+# (`instructions`) and option descriptions below IS our transformation; it is versioned
+# here (`transform_version`) and recorded on every case, never applied silently.
+
+jevbench:
+  loader: jevbench
+  source: https://github.com/fstandhartinger/jevbench
+  license: MIT
+  files: [datasets/public/original.jsonl, datasets/public/easy.jsonl, datasets/public/hard.jsonl]
+  # Native Jev wire-format questions; used as-is (no transformation).
+
+banking77:
+  loader: hf
+  source: mteb/banking77
+  split: test
+  license: CC-BY-4.0
+  type: choice
+  text_field: text
+  label_field: label_text
+  transform_version: 1
+  instructions: "Which banking customer-service intent does this message express?"
+  # 77 options, no descriptions (criteria values null); option keys are the original label names.
+
+ag_news:
+  loader: hf
+  source: fancyzhx/ag_news
+  split: test
+  license: unspecified (academic use; see dataset card)
+  type: choice
+  text_field: text
+  label_field: label
+  label_names: [World, Sports, Business, Sci/Tech]
+  transform_version: 1
+  instructions: "Which news category does this article belong to?"
+  criteria:
+    World: "International news, politics, conflicts, world affairs"
+    Sports: "Sports events, athletes, teams, competitions"
+    Business: "Companies, markets, the economy, finance"
+    Sci/Tech: "Science, technology, computing, the internet"
+
+sst2:
+  loader: hf
+  source: nyu-mll/glue
+  config: sst2
+  split: validation   # test labels are hidden
+  license: unspecified (see GLUE terms)
+  type: choice
+  text_field: sentence
+  label_field: label
+  label_names: [negative, positive]
+  transform_version: 1
+  instructions: "What is the sentiment of this movie review sentence?"
+  criteria:
+    negative: "The sentence expresses a negative opinion"
+    positive: "The sentence expresses a positive opinion"
+
+boolq:
+  loader: hf
+  source: aps/super_glue
+  config: boolq
+  split: validation   # test labels are hidden
+  license: CC-BY-SA-3.0
+  type: noul
+  text_field: passage
+  question_field: question
+  label_field: label   # 1 = true
+  transform_version: 1
+  instructions_template: "Based on the passage, is the answer to this question yes? Question: {question}?"

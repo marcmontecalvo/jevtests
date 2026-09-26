@@ -1,0 +1,52 @@
+seed: 1234
+
+# Per-dataset case caps (seeded sample; null = all). Overridden by --limit.
+datasets:
+  jevbench: null
+  banking77: 500
+  ag_news: 500
+  sst2: 500
+  boolq: 500
+
+# Always added to any selection (skipped with --no-jev).
+always_include: [typesafe-jev-latest]
+
+groups:
+  tiny:
+    max_parameters: 1.0e9
+  small:
+    max_parameters: 4.0e9
+  medium:
+    models: [kev-8b-qwen3, kev-9b-qwen3.5, open-jev-9b-qwen3.5, clm-qwen3-8b, jevlocal-hf-qwen3.5-9b]
+  large:
+    models:
+      - kev-27b-qwen3.8
+      - open-jev-27b-v1.1
+      - litjev-qwen3.8-27b
+      - reflex-qwen3.8-27b
+      - openjev-diffusiongemma-26b-a4b
+      - simplejev-gemma4-26b-a4b
+      - openjev-sglang-qwen3.6-35b-a3b
+
+# Highlight thresholds for reports
+tiny_max_params: 1.0e9
+large_min_params: 20.0e9
+high_confidence: 0.9
+
+modes:
+  accuracy:
+    # Same fixed concurrency for every model so batching can't skew comparisons.
+    concurrency: 4
+  order:
+    seeds: [1, 2]          # plus original + reversed
+    max_cases: 200          # choice cases only
+  repeat:
+    repeats: 5
+    max_cases: 30
+  latency:
+    warm_requests: 50       # sequential, concurrency 1
+  throughput:
+    concurrency: [1, 8, 32]
+    requests_per_level: 64
+  resources:
+    interval_s: 1.0

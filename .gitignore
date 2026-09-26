@@ -1,0 +1,22 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# upstream clones (pinned in config/upstreams.lock.json) and their venvs
+upstream/
+envs/
+
+# generated / large local data
+data/
+cache/
+logs/
+results/*
+!results/.gitkeep
+reports/*
+!reports/.gitkeep
+!reports/SETUP_STATUS.md
