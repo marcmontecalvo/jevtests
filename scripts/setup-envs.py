@@ -4,6 +4,10 @@
   uv run python scripts/setup-envs.py --group small       # venvs needed by a model group
   uv run python scripts/setup-envs.py --upstream kev reflex
   uv run python scripts/setup-envs.py --pin               # record current upstream HEADs
+  uv run python scripts/setup-envs.py --verify            # GPU check of every built venv
+
+Every build ends with a GPU check (a real kernel launch in the venv, torch or MLX):
+a CPU-only or wrong-architecture build fails here instead of silently running slow.
 
 Pins live in config/upstreams.lock.json (committed).
 """
@@ -19,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from harness.config import CONFIG, ENVS, UPSTREAM, models_config, select_models  # noqa: E402
+from harness.sysinfo import env_versions  # noqa: E402
 
 LOCK = CONFIG / "upstreams.lock.json"
 
@@ -61,10 +66,31 @@ def build_env(name: str, up: dict) -> bool:
     env_dir = ENVS / name
     cmd = up["env_setup"].format(env=env_dir)
     env = {**os.environ, "UV_PROJECT_ENVIRONMENT": str(env_dir), "UV_TORCH_BACKEND": "auto"}
+    env.pop("VIRTUAL_ENV", None)   # set by `uv run`; would make uv warn about the harness venv
     print(f"build {name}: {cmd}")
     r = subprocess.run(cmd, shell=True, cwd=UPSTREAM / up["dir"], env=env)
-    print(f"{'ok' if r.returncode == 0 else 'FAIL'}  {name}")
-    return r.returncode == 0
+    if r.returncode:
+        print(f"FAIL  {name} (build)")
+        return False
+    return verify_env(name)
+
+
+def verify_env(name: str) -> bool:
+    v = env_versions(str(ENVS / name))
+    if "torch" in v:
+        lib = f"torch {v['torch']} (cuda {v.get('torch_cuda')})"
+    elif "mlx_device" in v:
+        lib = f"mlx {v.get('mlx', '?')} on {v['mlx_device']}"
+    else:
+        lib = "no torch/mlx"
+    if v.get("gpu_ok"):
+        print(f"ok    {name}: {lib}, GPU kernel ok {v.get('capability', '')}")
+        return True
+    why = v.get("gpu_error") or ("CPU-only build" if v.get("cuda_available") is False else v.get("error", "no GPU library"))
+    print(f"FAIL  {name}: {lib}: {why}")
+    if v.get("arch_list"):
+        print(f"      built for {v['arch_list']}, device is {v.get('capability')}")
+    return False
 
 
 def main() -> None:
@@ -73,6 +99,7 @@ def main() -> None:
     ap.add_argument("--pin", action="store_true")
     ap.add_argument("--group")
     ap.add_argument("--upstream", nargs="*", default=[])
+    ap.add_argument("--verify", action="store_true", help="GPU-check existing venvs, no builds")
     args = ap.parse_args()
     upstreams = models_config()["upstreams"]
 
@@ -84,6 +111,9 @@ def main() -> None:
     if args.group:
         wanted += [s["upstream"] for s in select_models(group=args.group, include_jev=False)
                    if s.get("upstream")]
+    if args.verify:
+        built = [n for n in upstreams if (ENVS / n).exists()]
+        sys.exit(0 if all([verify_env(n) for n in built]) else 1)
     ENVS.mkdir(exist_ok=True)
     failed = [n for n in dict.fromkeys(wanted) if not build_env(n, upstreams[n])]
     sys.exit(1 if failed else 0)

@@ -28,10 +28,12 @@ defaults:
 
 upstreams:
   laya:            {repo: https://github.com/he-jev/laya,                    dir: he-jev_laya}
+  # kev's lock pins PyPI torch 2.8 (CPU-only on aarch64) and caps torch <2.9 -> swap in the cu129 build
   kev:             {repo: https://github.com/jaredpalmer/kev,                dir: jaredpalmer_kev,
-                    env_setup: "uv sync --frozen --extra serve"}
+                    env_setup: "uv sync --frozen --extra serve && uv pip install -p {env} torch==2.8.0 --torch-backend=cu129 --reinstall-package torch"}
+  # upstream uv.lock is stale (missing workspace member), so install from pyproject; MLX via its CUDA 13 backend
   system-one:      {repo: https://github.com/mpuig/system-one,               dir: mpuig_system-one,
-                    env_setup: "uv sync --frozen && uv pip install -p {env} mlx[cuda]"}
+                    env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e . mlx[cuda13]"}
   system-one-model: {repo: https://github.com/mateolafalce/system-one-model, dir: mateolafalce_system-one-model}
   reflex:          {repo: https://github.com/kshetrajna12/reflex,            dir: kshetrajna12_reflex,
                     env_setup: "uv sync --frozen"}
@@ -41,8 +43,9 @@ upstreams:
                     env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e .[train]"}
   semif:           {repo: https://github.com/tseanard/SemIf,                 dir: tseanard_SemIf,
                     env_setup: "uv venv {env} -p 3.12 && uv pip install -p {env} -e . fastapi uvicorn"}
+  # litjev's lock pins torch 2.11 +cu128; use the cu130 build of the same version (GB10 / CUDA 13 driver)
   litjev:          {repo: https://github.com/zhengxuyu/litjev,               dir: zhengxuyu_litjev,
-                    env_setup: "uv sync --frozen"}
+                    env_setup: "uv sync --frozen && uv pip install -p {env} torch==2.11.0 torchvision==0.26.0 --torch-backend=cu130 --reinstall-package torch --reinstall-package torchvision"}
   simple-jev:      {repo: https://github.com/featherless-ai/simple-jev,      dir: featherless-ai_simple-jev,
                     env_setup: "uv venv {env} -p 3.13 && uv pip install -p {env} -e ./hf-server torch"}
   local-jev:       {repo: https://github.com/amithgc/local-jev,              dir: amithgc_local-jev,
@@ -177,14 +180,14 @@ models:
     hf: [HuggingFaceTB/SmolLM2-135M]
     serve: "{python} scripts/serve.py --model HuggingFaceTB/SmolLM2-135M --adapter adapters/smollm2-135m-structured-v1-rps --port {port}"
     health_path: /health
-    notes: "MLX-only engine; on Linux needs mlx[cuda] (installed by env_setup). Unsupported on Windows."
+    notes: "MLX-only engine; on Linux needs mlx[cuda13] (installed by env_setup). Unsupported on Windows."
   sysone-qwen3-0.6b:
     upstream: system-one
     params: 0.6e9
     hf: [Qwen/Qwen3-0.6B]
     serve: "{python} scripts/serve.py --model Qwen/Qwen3-0.6B --adapter adapters/qwen3-0.6b-structured-v1-synthfiltered-rps --temperature release/temperature-qwen3-0.6b.json --port {port}"
     health_path: /health
-    notes: "MLX-only engine; on Linux needs mlx[cuda]. Uses upstream's published temperature file."
+    notes: "MLX-only engine; on Linux needs mlx[cuda13]. Uses upstream's published temperature file."
   sysone-minicpm5-2b-q8:
     upstream: system-one
     params: 2.0e9
@@ -192,7 +195,7 @@ models:
     hf: [mpuig/system-one-minicpm5-2b-q8]
     serve: "{python} scripts/serve.py --model {hf:mpuig/system-one-minicpm5-2b-q8} --temperature release/temperature-minicpm5-2b-q8.json --port {port}"
     health_path: /health
-    notes: "MLX-only engine; on Linux needs mlx[cuda]. Uses upstream's published temperature file."
+    notes: "MLX-only engine; on Linux needs mlx[cuda13]. Uses upstream's published temperature file."
 
   # ---------------------------------------------------------------- mateolafalce ModernBERT
   modernbert-sysone-149m:

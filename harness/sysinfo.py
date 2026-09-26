@@ -65,7 +65,29 @@ try:
     import torch
     out["torch_cuda"] = torch.version.cuda
     out["cuda_available"] = torch.cuda.is_available()
-except Exception: pass
+    if out["cuda_available"]:
+        out["capability"] = "sm_%d%d" % torch.cuda.get_device_capability(0)
+        out["arch_list"] = torch.cuda.get_arch_list()
+        # is_available() is not enough: a build without kernels for this GPU only fails here
+        x = torch.randn(512, 512, device="cuda", dtype=torch.bfloat16)
+        torch.nn.functional.softmax(x @ x, dim=-1).sum().item()
+        out["gpu_ok"] = True
+    else:
+        out["gpu_ok"] = False
+except ImportError: pass
+except Exception as e:
+    out["gpu_ok"] = False
+    out["gpu_error"] = f"{type(e).__name__}: {e}"[:300]
+if "torch" not in out:
+    try:
+        import mlx.core as mx
+        out["mlx_device"] = str(mx.default_device())
+        mx.eval(mx.softmax(mx.random.normal((512, 512)) @ mx.random.normal((512, 512)), axis=-1))
+        out["gpu_ok"] = "gpu" in out["mlx_device"]
+    except ImportError: pass
+    except Exception as e:
+        out["gpu_ok"] = False
+        out["gpu_error"] = f"{type(e).__name__}: {e}"[:300]
 print(json.dumps(out))
 """
 

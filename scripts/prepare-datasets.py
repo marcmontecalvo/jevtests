@@ -25,6 +25,9 @@ def main() -> None:
         except Exception as e:  # noqa: BLE001 - one bad dataset must not stop the others
             failed.append(name)
             print(f"FAIL  {name:12s} {type(e).__name__}: {e}")
+            if isinstance(e, PermissionError):
+                print("      HF cache not writable (often root-owned after a sudo/docker run). Fix:\n"
+                      "      sudo chown -R $USER:$USER ~/.cache/huggingface   (or set HF_HOME in .env)")
     sys.exit(1 if failed else 0)
 
 
