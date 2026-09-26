@@ -56,11 +56,19 @@ upstreams:
 
 models:
   # ---------------------------------------------------------------- hosted baseline
+  # Same model, two routes. benchmark.yaml `always_include` picks the default one.
+  openrouter-jev-latest:
+    kind: cloud
+    provider: openrouter
+    params: null
+    request_model: jev-latest      # OpenRouter maps this to ~typesafe/jev-latest
+    notes: "Hosted via OpenRouter (key OPENROUTER_API_KEY). Served version + usage.cost recorded per response."
   typesafe-jev-latest:
     kind: cloud
+    provider: typesafe
     params: null
     request_model: jev-latest
-    notes: "Hosted. Base URL/key from JEV_BASE_URL / JEV_API_KEY. Served version recorded per response."
+    notes: "Hosted directly by TypeSafe (key JEV_API_KEY, url JEV_BASE_URL). Served version recorded per response."
 
   # ---------------------------------------------------------------- Laya (served via razorback16/openjev's laya backend)
   laya-en-421m:

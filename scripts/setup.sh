@@ -36,7 +36,7 @@ uv run python scripts/prepare-datasets.py || warn "some datasets failed"
 
 step "6. Local directories"
 mkdir -p data cache logs results reports envs
-[ -f .env ] || { cp .env.example .env; warn ".env created from template - fill in JEV_API_KEY / HF_TOKEN"; }
+[ -f .env ] || { cp .env.example .env; warn ".env created from template - fill in OPENROUTER_API_KEY (or JEV_API_KEY) / HF_TOKEN"; }
 
 step "7. Validate configuration  +  8. Smoke tests"
 uv run pytest -q || warn "unit tests failed"

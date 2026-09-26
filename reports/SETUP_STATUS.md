@@ -1,6 +1,6 @@
 # Setup status
 
-Generated 2026-09-26 10:51 by `scripts/setup-status.py`.
+Generated 2026-09-26 12:15 by `scripts/setup-status.py`.
 
 ## Detected hardware
 
@@ -8,7 +8,7 @@ Generated 2026-09-26 10:51 by `scripts/setup-status.py`.
 - CPU cores: 24, RAM: 63.1 GB
 - GPUs: NVIDIA GeForce RTX 3070 (8192 MiB, driver 610.88)
 - CUDA (driver): 13.3
-- Repo commit: 3483e44ca0f237b4f5de6b19b989f882e025fc92 (dirty)
+- Repo commit: 57485b28e56c725b3bd1794a5354a8ee1ae075d4 (dirty)
 
 ## Installed dependencies
 
@@ -68,6 +68,7 @@ Per-upstream venvs (`envs/`):
 
 | Model | Upstream | Params | HF repos (+ bases) | GB | Enabled |
 |---|---|---:|---|---:|---|
+| openrouter-jev-latest | cloud | – | – | – | yes |
 | typesafe-jev-latest | cloud | – | – | – | yes |
 | laya-en-421m | openjev | 421M | convaiinnovations/laya | 2.4 | yes |
 | laya-multilingual-322m | openjev | 322M | convaiinnovations/laya-multilingual | 0.7 | yes |
@@ -119,7 +120,7 @@ Per-upstream venvs (`envs/`):
 | small | 27 | 25 | 65.4 |
 | medium | 5 | 8 | 72.0 |
 | large | 7 | 6 | 198.6 |
-| all | 40 | 39 | 335.9 |
+| all | 41 | 39 | 335.9 |
 
 Sizes are current-revision file totals on the Hub; local-jev fetches its own models (not counted). Groups overlap.
 
@@ -133,7 +134,8 @@ Sizes are current-revision file totals on the Hub; local-jev fetches its own mod
 
 ## Models requiring special handling
 
-- `typesafe-jev-latest`: Hosted. Base URL/key from JEV_BASE_URL / JEV_API_KEY. Served version recorded per response.
+- `openrouter-jev-latest`: Hosted via OpenRouter (key OPENROUTER_API_KEY). Served version + usage.cost recorded per response.
+- `typesafe-jev-latest`: Hosted directly by TypeSafe (key JEV_API_KEY, url JEV_BASE_URL). Served version recorded per response.
 - `clm-qwen3-8b`: Needs the `clm` package (github.com/Contrastive-LM/CLM) in the openjev env; see docker/Dockerfile.clm upstream.
 - `jevk5-qwen3.5-4b`: Needs the `jevk5` package (github.com/allebee/jevk5) in the openjev env; see docker/Dockerfile.jevk5 upstream.
 - `openjev-diffusiongemma-26b-a4b`: Needs the patched vLLM stack: run `docker compose up` in upstream/razorback16_openjev (serves :8080), then benchmark. NVFP4 needs Blackwell (GB10 ok).
@@ -162,10 +164,10 @@ Sizes are current-revision file totals on the Hub; local-jev fetches its own mod
 
 ## Jev API status
 
-JEV_API_KEY not set.
+- `openrouter-jev-latest`: skipped (OPENROUTER_API_KEY not set)
 
 ## Blockers / incompatibilities
 
 - `kev-4b-qwen3`: Model card docs/model-cards/kev-4b-qwen3.md exists but no public HF repo was found.
 - `modernbert-sysone-149m`: Trained checkpoint (artifacts/phase2/best) is not published in the repo or on HF. Must be trained with upstream scripts 01-05 (fits 8 GB) before it can be served by scripts/07_serve.py.
-- JEV_API_KEY not set
+- Jev route `openrouter-jev-latest`: skipped (OPENROUTER_API_KEY not set)

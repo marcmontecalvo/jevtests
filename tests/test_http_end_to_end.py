@@ -95,11 +95,18 @@ def test_run_resume_and_report(tmp_path, server, monkeypatch):
     assert "fake" in (out / "summary.md").read_text(encoding="utf-8")
 
 
-def test_jev_cloud_sends_bearer(monkeypatch, server):
+@pytest.mark.parametrize("provider,key_env,url_env", [
+    ("typesafe", "JEV_API_KEY", "JEV_BASE_URL"),
+    ("openrouter", "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL"),
+])
+def test_jev_cloud_providers_send_bearer(monkeypatch, server, provider, key_env, url_env):
     from adapters.jev_cloud import JevCloud
-    monkeypatch.setenv("JEV_API_KEY", "k123")
-    monkeypatch.setenv("JEV_BASE_URL", server)
-    m = JevCloud({"name": "jev", "kind": "cloud", "request_model": "jev-latest"})
+    for k in ("JEV_API_KEY", "TYPESAFE_API_KEY", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv(key_env, "k123")
+    monkeypatch.setenv(url_env, server)
+    m = JevCloud({"name": "jev", "kind": "cloud", "provider": provider,
+                  "request_model": "jev-latest"})
 
     async def go():
         await m.load()
@@ -110,4 +117,13 @@ def test_jev_cloud_sends_bearer(monkeypatch, server):
     r = asyncio.run(go())
     assert r.error is None and r.prediction is True
     assert SEEN[0][0] == "Bearer k123" and SEEN[0][1]["model"] == "jev-latest"
-    assert m.provenance["served_model"] == "fake-1.0"
+    assert m.provenance["served_model"] == "fake-1.0" and m.provenance["provider"] == provider
+
+
+def test_jev_cloud_missing_key_names_the_right_variable(monkeypatch):
+    from adapters.jev_cloud import JevCloud
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        JevCloud({"name": "jev", "kind": "cloud", "provider": "openrouter"})
+    with pytest.raises(ValueError, match="unknown provider"):
+        JevCloud({"name": "jev", "kind": "cloud", "provider": "nope"})

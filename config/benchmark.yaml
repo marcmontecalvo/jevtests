@@ -9,7 +9,8 @@ datasets:
   boolq: 500
 
 # Always added to any selection (skipped with --no-jev).
-always_include: [typesafe-jev-latest]
+# Swap to typesafe-jev-latest to call TypeSafe directly (or list both to compare routes).
+always_include: [openrouter-jev-latest]
 
 groups:
   tiny:

@@ -1,7 +1,8 @@
 """Fast harness sanity check (no model downloads):
   1. config validation (every model's upstream/env/templates resolve)
   2. prepared datasets present
-  3. one live Jev cloud request, if JEV_API_KEY is set
+  3. one live request per hosted Jev route in benchmark.yaml `always_include`
+     (OpenRouter and/or TypeSafe), if its API key is set
 
   uv run python scripts/smoke-test.py [--offline]
 
@@ -12,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -31,8 +31,15 @@ PROBE = Case(id="smoke-noul", dataset="smoke", type="noul",
 def check_config() -> list[str]:
     problems = []
     cfg = models_config()
+    from adapters.jev_cloud import provider_of
     for name, m in model_specs().items():
-        if m.get("kind") == "cloud" or not m["enabled"]:
+        if m.get("kind") == "cloud":
+            try:
+                provider_of(m)
+            except ValueError as e:
+                problems.append(str(e))
+            continue
+        if not m["enabled"]:
             continue
         if m.get("upstream") not in cfg["upstreams"]:
             problems.append(f"{name}: unknown upstream {m.get('upstream')!r}")
@@ -53,9 +60,8 @@ def check_config() -> list[str]:
     return problems
 
 
-async def jev_probe() -> str:
+async def jev_probe(spec: dict) -> str:
     from adapters.jev_cloud import JevCloud
-    spec = {**model_specs()["typesafe-jev-latest"]}
     m = JevCloud(spec)
     await m.load()
     try:
@@ -66,6 +72,27 @@ async def jev_probe() -> str:
         return f"FAIL {r.error}"
     return (f"ok  served={m.provenance.get('served_model')} noul={r.probabilities['true']:.3f} "
             f"latency={r.latency_ms:.0f}ms")
+
+
+def cloud_probes() -> list[tuple[str, str]]:
+    """(model, status) for each hosted Jev route in always_include. status starts with
+    ok / FAIL / skipped."""
+    from adapters.jev_cloud import api_key, provider_of
+    specs = model_specs()
+    out = []
+    for name in benchmark_config().get("always_include", []):
+        spec = specs[name]
+        if spec.get("kind") != "cloud":
+            continue
+        if not api_key(spec):
+            keys = " / ".join(provider_of(spec)["key_envs"])
+            out.append((name, f"skipped ({keys} not set)"))
+            continue
+        try:
+            out.append((name, asyncio.run(jev_probe(spec))))
+        except Exception as e:  # noqa: BLE001
+            out.append((name, f"FAIL {type(e).__name__}: {e}"))
+    return out
 
 
 def main() -> None:
@@ -89,15 +116,9 @@ def main() -> None:
             failed = True
 
     if not args.offline:
-        if os.environ.get("JEV_API_KEY") or os.environ.get("TYPESAFE_API_KEY"):
-            try:
-                status = asyncio.run(jev_probe())
-            except Exception as e:  # noqa: BLE001
-                status = f"FAIL {type(e).__name__}: {e}"
-            print(f"[jev]      {status}")
+        for name, status in cloud_probes():
+            print(f"[jev]      {name}: {status}")
             failed |= status.startswith("FAIL")
-        else:
-            print("[jev]      skipped (JEV_API_KEY not set)")
     print("[upstream] " + ", ".join(sorted(p.name for p in UPSTREAM.iterdir()))
           if UPSTREAM.exists() else "[upstream] none cloned")
     sys.exit(1 if failed else 0)

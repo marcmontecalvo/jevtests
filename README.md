@@ -27,7 +27,7 @@ harness/runner.py ─► results/benchmark.sqlite ─► harness/report.py ─�
 ## Quick start (DGX Spark / Linux)
 
 ```bash
-cp .env.example .env              # JEV_API_KEY, HF_TOKEN
+cp .env.example .env              # OPENROUTER_API_KEY (or JEV_API_KEY), HF_TOKEN
 ./scripts/setup.sh                # tools check, deps, upstreams, small-group venvs, datasets, tests, status
 uv run python scripts/download-models.py --group small
 uv run python scripts/run-benchmark.py --run smoke --group small --limit 4 --modes accuracy,latency
@@ -60,6 +60,21 @@ doesn't change what's compared. Accuracy uses the same fixed concurrency for eve
 
 Modes (`--modes`): `accuracy`, `order` (reversed + 2 seeded option orders),
 `repeat`, `latency` (cold first request + sequential warm p50/p95/p99), `throughput`.
+
+## Hosted Jev: OpenRouter or TypeSafe
+
+Jev is reachable two ways; both speak the same `/v1/systemone` contract, so results are
+directly comparable. Each route is its own named contestant:
+
+| Contestant | Provider | Key | Base URL override |
+|---|---|---|---|
+| `openrouter-jev-latest` (default) | OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_BASE_URL` |
+| `typesafe-jev-latest` | TypeSafe | `JEV_API_KEY` | `JEV_BASE_URL` |
+
+The default is `always_include` in `config/benchmark.yaml`. To swap back to TypeSafe, change it
+to `[typesafe-jev-latest]` (or list both to compare routes), or pick one ad hoc with
+`--no-jev --models typesafe-jev-latest`. New providers go in `PROVIDERS` in
+`adapters/jev_cloud.py` plus a `provider:` on a model entry.
 
 ## Adding a contestant
 

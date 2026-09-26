@@ -10,7 +10,6 @@ import asyncio
 import datetime
 import importlib.metadata as md
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -187,19 +186,12 @@ def main() -> None:
     L += ["## Jev API status", ""]
     if args.offline:
         L.append("Skipped (--offline).")
-    elif not (os.environ.get("JEV_API_KEY") or os.environ.get("TYPESAFE_API_KEY")):
-        L.append("JEV_API_KEY not set.")
-        blockers.append("JEV_API_KEY not set")
     else:
         sys.path.insert(0, str(Path(__file__).parent))
-        smoke = __import__("smoke-test")
-        try:
-            status = asyncio.run(smoke.jev_probe())
-        except Exception as e:  # noqa: BLE001
-            status = f"FAIL {type(e).__name__}: {e}"
-        L.append(status)
-        if status.startswith("FAIL"):
-            blockers.append(f"Jev API: {status}")
+        for name, status in __import__("smoke-test").cloud_probes():
+            L.append(f"- `{name}`: {status}")
+            if not status.startswith("ok"):
+                blockers.append(f"Jev route `{name}`: {status}")
     L.append("")
 
     L += ["## Blockers / incompatibilities", ""] + [f"- {b}" for b in blockers] + [""]
