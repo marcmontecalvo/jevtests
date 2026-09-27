@@ -67,3 +67,9 @@ def test_repeatability():
     r = M.repeatability({"x": [a, a, a], "y": [a, b, {"pred_key": None}]})
     assert r["answer_agreement"] == 0.5
     assert r["failure_rate"] == pytest.approx(1 / 6)
+
+
+def test_ci95_half_width():
+    assert M.ci95(0.5, 100) == pytest.approx(0.098)
+    assert M.ci95(1.0, 50) == 0
+    assert M.ci95(None, 10) is None and M.ci95(0.5, 0) is None

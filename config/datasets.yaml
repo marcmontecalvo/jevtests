@@ -2,11 +2,20 @@
 # Labels are preserved verbatim. For non-Jev datasets the wording of the question
 # (`instructions`) and option descriptions below IS our transformation; it is versioned
 # here (`transform_version`) and recorded on every case, never applied silently.
+#
+# `trained_on`: upstreams (config/models.yaml `upstream:`) whose released checkpoints were
+# trained on this dataset's train split. We always test on held-out splits, so this is not
+# test-item leakage, but it is home turf for those contestants; reports separate "clean"
+# datasets (nobody listed) from the rest. Only verified from upstream training code:
+# hosted Jev, Laya, JevK5 and the DeBERTa zero-shot checkpoint don't publish their data.
+# (local-jev has a training script over many of these, but the local-jev models we run are
+# stock Qwen/DeBERTa checkpoints, so it isn't listed.)
 
 jevbench:
   loader: jevbench
   source: https://github.com/fstandhartinger/jevbench
   license: MIT
+  trained_on: []   # kev screens its data for jevbench overlap (scripts/screen_overlap.py)
   files: [datasets/public/original.jsonl, datasets/public/easy.jsonl, datasets/public/hard.jsonl]
   # Native Jev wire-format questions; used as-is (no transformation).
 
@@ -15,6 +24,7 @@ banking77:
   source: mteb/banking77
   split: test
   license: CC-BY-4.0
+  trained_on: [kev]   # upstream/jaredpalmer_kev/kev/data.py TRAINABLE
   type: choice
   text_field: text
   label_field: label_text
@@ -27,6 +37,7 @@ ag_news:
   source: fancyzhx/ag_news
   split: test
   license: unspecified (academic use; see dataset card)
+  trained_on: [kev]   # kev/data.py TRAINABLE ("agnews")
   type: choice
   text_field: text
   label_field: label
@@ -45,6 +56,7 @@ sst2:
   config: sst2
   split: validation   # test labels are hidden
   license: unspecified (see GLUE terms)
+  trained_on: [kev]   # kev trains on SST-5, the same movie-review corpus
   type: choice
   text_field: sentence
   label_field: label
@@ -61,9 +73,81 @@ boolq:
   config: boolq
   split: validation   # test labels are hidden
   license: CC-BY-SA-3.0
+  trained_on: [kev, open-jev]   # kev/data.py TRAINABLE; Open-Jev jev/public_data.py (train split)
   type: noul
   text_field: passage
   question_field: question
   label_field: label   # 1 = true
   transform_version: 1
   instructions_template: "Based on the passage, is the answer to this question yes? Question: {question}?"
+
+# ---- datasets no contestant is known to train on (added 2026-09-27)
+
+clinc150:
+  loader: hf
+  source: clinc/clinc_oos
+  config: plus
+  split: test
+  license: CC-BY-3.0
+  trained_on: []   # kev uses it only as an eval suite (scripts/build_breadth_v1.py)
+  type: choice
+  text_field: text
+  label_field: intent
+  transform_version: 1
+  instructions: "Which assistant intent does this user request express?"
+  # 151 options: 150 intents plus "oos"; labels verbatim, only "oos" gets a description.
+  descriptions:
+    oos: "Out of scope: the request matches none of the other intents"
+
+hans:
+  loader: hf
+  source: jhu-cogsci/hans
+  revision: refs/convert/parquet   # the repo itself is a loading script
+  split: validation                # the HANS evaluation set (30k)
+  license: unspecified (see github.com/tommccoy1/hans)
+  trained_on: []
+  type: noul
+  text_field: premise
+  question_field: hypothesis
+  label_field: label
+  true_label: 0                    # 0 = entailment
+  transform_version: 1
+  instructions_template: "If the passage is true, must this statement also be true? \"{question}\""
+
+stsb:
+  loader: hf
+  source: sentence-transformers/stsb
+  split: test
+  license: see STS Benchmark terms (sentences from mixed public sources)
+  trained_on: []
+  type: score
+  label_field: score               # 0..1 (original 0..5 divided by 5)
+  score_scale: 5                   # -> nearest integer level 0..5, halves round up
+  state_fields: {sentence_1: sentence1, sentence_2: sentence2}
+  transform_version: 1
+  instructions: "How similar in meaning are sentence_1 and sentence_2?"
+  levels:                          # STS annotation guidelines (Agirre et al.)
+    - "0: completely dissimilar"
+    - "1: not equivalent, but on the same topic"
+    - "2: not equivalent, but share some details"
+    - "3: roughly equivalent, some important information differs or is missing"
+    - "4: mostly equivalent, some unimportant details differ"
+    - "5: completely equivalent, they mean the same thing"
+
+financial_phrasebank:
+  loader: financial_phrasebank
+  source: takala/financial_phrasebank
+  agreement: AllAgree              # sentences all annotators agreed on (2,264)
+  split: all                       # no official split; the whole file is held out for us
+  license: CC-BY-NC-SA-3.0 (non-commercial)
+  trained_on: []
+  type: choice
+  text_field: sentence
+  label_field: label
+  label_names: [negative, neutral, positive]
+  transform_version: 1
+  instructions: "What is the sentiment of this financial news sentence for investors?"
+  criteria:
+    negative: "Bad news for the company or its investors"
+    neutral: "Neither good nor bad news for the company or its investors"
+    positive: "Good news for the company or its investors"

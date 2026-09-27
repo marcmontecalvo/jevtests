@@ -7,6 +7,10 @@ datasets:
   ag_news: 500
   sst2: 500
   boolq: 500
+  clinc150: 500
+  hans: 500
+  stsb: 500
+  financial_phrasebank: 500
 
 # Always added to any selection (skipped with --no-jev).
 # Swap to typesafe-jev-latest to call TypeSafe directly (or list both to compare routes).

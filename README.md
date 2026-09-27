@@ -46,6 +46,18 @@ uv run python scripts/run-benchmark.py --run full-v1 --modes throughput      # o
 Results for one `--run` accumulate across invocations, so scheduling (parallel vs isolated)
 doesn't change what's compared. Accuracy uses the same fixed concurrency for every model.
 
+## Run names
+
+`suite<N>-<YYYY-MM-DD>[-<tag>]`, e.g. `suite2-2026-09-27`, `suite2-2026-09-27-large`.
+
+- **suite N** changes when the dataset set in `config/benchmark.yaml` changes, so runs with
+  the same suite number are directly comparable. suite1 = jevbench, banking77, ag_news,
+  sst2, boolq. suite2 = suite1 + clinc150, hans, stsb, financial_phrasebank.
+- **date** = the day the run started. A later run on the same suite is a new name.
+- **tag** (optional) marks a variant of the same suite: `-large` for the isolated
+  large-model pass (or just resume the same name, since results accumulate), `-rerun`, etc.
+- `smoke*` names are throwaway checks, not results.
+
 ## Commands
 
 | Script | Purpose |
@@ -59,7 +71,7 @@ doesn't change what's compared. Accuracy uses the same fixed concurrency for eve
 | `scripts/setup-status.py` | Regenerate `reports/SETUP_STATUS.md` |
 
 Modes (`--modes`): `accuracy`, `order` (reversed + 2 seeded option orders),
-`repeat`, `latency` (cold first request + sequential warm p50/p95/p99), `throughput`.
+`repeat`, `latency` (sequential warm p50/p95/p99; every load is also followed by one cold probe request, reported as Ready s / Cold first ms), `throughput`.
 
 ## Hosted Jev: OpenRouter or TypeSafe
 
@@ -105,6 +117,11 @@ No code needed as long as it speaks `/v1/systemone`.
 noul: optional true/false descriptions). `expected`: choice → option, noul → bool,
 score → level index. JevBench questions are used verbatim; question wording for other
 datasets lives (versioned) in `config/datasets.yaml`.
+
+Each dataset lists `trained_on`: upstreams whose released checkpoints trained on its
+train split (e.g. Kev on Banking77/AG News/BoolQ/SST). We always test on held-out splits,
+but those are home turf, so reports add **Clean Acc**: accuracy only on datasets no
+contestant is known to train on (JevBench, CLINC150, HANS, STS-B, Financial PhraseBank).
 
 ## Metrics
 

@@ -51,6 +51,13 @@ def ece(tops: list[float], corrects: list[bool], n_bins: int = ECE_BINS) -> floa
     return sum(b["n"] / n * abs(b["acc"] - b["conf"]) for b in ece_bins(tops, corrects, n_bins))
 
 
+def ci95(p: float | None, n: int) -> float | None:
+    """Half-width of the normal-approximation 95% interval for a proportion."""
+    if p is None or not n:
+        return None
+    return 1.96 * math.sqrt(p * (1 - p) / n)
+
+
 def percentile(xs: list[float], q: float) -> float | None:
     xs = sorted(x for x in xs if x is not None)
     if not xs:

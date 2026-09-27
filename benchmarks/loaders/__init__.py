@@ -14,6 +14,9 @@ def prepare(name: str) -> dict:
     if cfg["loader"] == "jevbench":
         from benchmarks.loaders import jevbench
         cases, meta = jevbench.load(cfg)
+    elif cfg["loader"] == "financial_phrasebank":
+        from benchmarks.loaders import financial_phrasebank
+        cases, meta = financial_phrasebank.load(name, cfg)
     else:
         from benchmarks.loaders import hf
         cases, meta = hf.load(name, cfg)

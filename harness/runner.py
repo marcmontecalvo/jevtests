@@ -5,7 +5,9 @@ Modes:
   accuracy    every case once (variant orig, rep 0) at a fixed shared concurrency
   order       choice cases in reversed + seeded orders (orig comes from accuracy)
   repeat      identical re-requests of a subset (rep 0 comes from accuracy)
-  latency     cold first request, then sequential warm requests
+  latency     sequential warm requests
+(Every load is followed by one cold probe request, mode "first"/variant "cold", so
+readiness = load time + first real decision, not just a passing health check.)
   throughput  decisions/sec at several concurrency levels (aggregates only)
 """
 from __future__ import annotations
@@ -92,8 +94,6 @@ class ModelRun:
     async def mode_latency(self):
         n = self.mcfg["latency"]["warm_requests"]
         pool = subset(self.cases, len(self.cases), self.seed)
-        # rep 0 of "first" is the cold first inference right after load
-        await self.run_jobs("first", [("orig", 0, pool[0])], 1)
         await self.run_jobs("latency", [("orig", i, pool[i % len(pool)]) for i in range(n)], 1)
 
     async def mode_throughput(self):
@@ -125,8 +125,7 @@ class ModelRun:
                 smp.phase = "load"
                 self.adapter = build_adapter(self.spec)
                 await self.adapter.load()
-                self.db.upsert_model(self.run_id, self.name, load_s=self.adapter.load_s,
-                                     status="running")
+                self.db.upsert_model(self.run_id, self.name, status="running")
                 log.info("%s loaded in %.1fs", self.name, self.adapter.load_s)
             except Exception as e:  # noqa: BLE001
                 msg = f"{type(e).__name__}: {e}"
@@ -138,6 +137,13 @@ class ModelRun:
                 return "load_failed"
             status = "done"
             try:
+                # cold probe: the first real decision after load. load_s is stored only
+                # alongside it, so a resumed run keeps the load time the probe measured.
+                probe = self.todo("first", [("cold", 0, self.cases[0])])
+                if probe:
+                    smp.phase = "first"
+                    await self.run_jobs("first", probe, 1)
+                    self.db.upsert_model(self.run_id, self.name, load_s=self.adapter.load_s)
                 for mode in modes:
                     smp.phase = mode
                     try:

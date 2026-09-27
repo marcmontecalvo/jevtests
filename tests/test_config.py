@@ -17,3 +17,23 @@ def test_group_selection_by_size_and_jev_inclusion():
     assert all(m["params"] <= 4e9 for m in small if m.get("params"))
     assert "openrouter-jev-latest" not in [m["name"] for m in select_models(group="large",
                                                                           include_jev=False)]
+
+
+def test_trained_on_names_real_upstreams():
+    from harness.config import datasets_config, models_config
+    upstreams = set(models_config()["upstreams"])
+    for name, cfg in datasets_config().items():
+        assert isinstance(cfg.get("trained_on"), list), f"{name}: trained_on must be a list"
+        assert set(cfg["trained_on"]) <= upstreams, name
+
+
+def test_every_benchmarked_dataset_is_configured():
+    from harness.config import datasets_config
+    assert set(benchmark_config()["datasets"]) <= set(datasets_config())
+
+
+def test_broken_models_are_dropped():
+    specs = model_specs()
+    for name in ("jevlocal-hf-qwen2.5-3b", "litjev-qwen3.5-0.8b", "simplejev-qwen3.5-0.8b", "laya-en-421m"):
+        assert specs[name]["enabled"] is False and specs[name]["blocker"], name
+        assert name not in [m["name"] for m in select_models(group="small")]

@@ -76,6 +76,8 @@ models:
 
   # ---------------------------------------------------------------- Laya (served via razorback16/openjev's laya backend)
   laya-en-421m:
+    enabled: false
+    blocker: "Dropped (2026-09-27): options must fit in 192 tokens (laya head_max_len); rejects CLINC150's 151 intents."
     upstream: openjev
     params: 421.0e6
     hf: [convaiinnovations/laya]
@@ -285,6 +287,8 @@ models:
 
   # ---------------------------------------------------------------- LitJev (frozen Qwen3.x)
   litjev-qwen3.5-0.8b:
+    enabled: false
+    blocker: "Dropped (2026-09-27, suite1-2026-09-26): picks by position, not content: 93% of banking77 answers from the first 10 of 77 options, flips to the new first options when reversed."
     upstream: litjev
     request_model: litjev   # server rejects any other model id
     params: 0.8e9
@@ -305,6 +309,8 @@ models:
 
   # ---------------------------------------------------------------- Simple Jev (featherless hf-server)
   simplejev-qwen3.5-0.8b:
+    enabled: false
+    blocker: "Dropped (2026-09-27, suite1-2026-09-26): picks by position, not content: answers option #1 on 51% of banking77 cases; accuracy 0.515 overall."
     upstream: simple-jev
     params: 0.8e9
     hf: [Qwen/Qwen3.5-0.8B]
@@ -352,6 +358,8 @@ models:
   # ---------------------------------------------------------------- jev-local (us) — HF logprob scorer only
   # Its default deterministic stub scorer is NOT a contestant (hash-based, not intelligent).
   jevlocal-hf-qwen2.5-3b:
+    enabled: false
+    blocker: "Dropped (2026-09-27): server returns null probabilities on 68% of cases (TypeError: float(None)); suite1-2026-09-26 coverage 32%."
     upstream: jev-local
     params: 3.0e9
     hf: [Qwen/Qwen2.5-3B-Instruct]

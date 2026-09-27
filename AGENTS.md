@@ -105,6 +105,10 @@ Include all available checkpoints:
 
 Laya directly supports Choice, Score, and Noul.
 
+> **laya-en-421m excluded (2026-09-27):** its head fits at most 192 tokens of options, so it
+> rejects CLINC150's 151 intents. Kept disabled in `config/models.yaml`; the multilingual
+> and typed checkpoints fit and stay in.
+
 ---
 
 ### Kev

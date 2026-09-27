@@ -97,8 +97,24 @@ def test_run_resume_and_report(tmp_path, server, monkeypatch):
     assert f["choice_acc"] == 1.0 and f["noul_acc"] == 0.0 and f["errors"] == 1
     assert f["order_order_consistency"] == 0.0        # position bias caught
     assert f["p50_ms"] is not None and f["max_decisions_per_s"] > 0
+    assert f["ready_s"] >= f["load_s"] and f["first_ms"] is not None   # cold probe after load
     assert summ["broken"]["status"] == "load_failed"
-    assert "fake" in (out / "summary.md").read_text(encoding="utf-8")
+    md = (out / "summary.md").read_text(encoding="utf-8")
+    assert "fake" in md
+    assert "every large model wrong" not in md   # only large model never answered: hidden
+    assert "High-confidence wrong" in md
+    assert f["clean_acc"] == f["accuracy"] and f["clean_n"] == f["n"]   # unknown dataset: clean
+    assert "Max dec/s" in md and "Ready s" in md                        # optional cols with data
+
+    # the same run with dataset "t" marked as trained on by kev: nothing clean left
+    monkeypatch.setattr(report, "exposure", lambda: {"t": ["kev"]})
+    out = report.build(db, "r1")
+    f = {s["model"]: s for s in json.loads((out / "summary.json").read_text())}["fake"]
+    assert f["clean_n"] == 0 and f["clean_acc"] is None
+    md = (out / "summary.md").read_text(encoding="utf-8")
+    assert "t — kev" in md and "Clean Acc" not in md   # column needs clean and seen datasets
+    rows = list(__import__("csv").DictReader(open(out / "by_dataset.csv", encoding="utf-8")))
+    assert {r["trained_on"] for r in rows if r["model"] == "fake"} == {"kev"}
     import csv
     errs = list(csv.DictReader(open(out / "errors.csv", encoding="utf-8")))
     assert {(e["model"], e["stage"]) for e in errs if e["model"] != "rejecting"} == {
@@ -137,3 +153,22 @@ def test_jev_cloud_missing_key_names_the_right_variable(monkeypatch):
         JevCloud({"name": "jev", "kind": "cloud", "provider": "openrouter"})
     with pytest.raises(ValueError, match="unknown provider"):
         JevCloud({"name": "jev", "kind": "cloud", "provider": "nope"})
+
+
+def test_docker_served_model_samples_the_container(monkeypatch):
+    from adapters import http_systemone as H
+    m = H.HttpSystemOne({"name": "d", "serve": "x"})
+    m.proc = type("P", (), {"pid": 111})()
+    m.provenance["command"] = "python -m server --port 1"
+    assert m.server_pid() == 111                      # plain process: its own pid
+
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return type("R", (), {"stdout": "4242\n"})()
+    monkeypatch.setattr(H.subprocess, "run", fake_run)
+    m.provenance["command"] = "docker run --rm --name jevtests-d --gpus all img"
+    assert m.server_pid() == 4242 and m.server_pid() == 4242
+    assert calls == [["docker", "inspect", "-f", "{{.State.Pid}}", "jevtests-d"]]   # cached
+    assert m.provenance["mem_source"] == "container"

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -42,6 +43,7 @@ class HttpSystemOne(DecisionModel):
         self.client: httpx.AsyncClient | None = None
         self.provenance: dict = {}
         self.load_s = None
+        self._container_pid: int | None = None
 
     def headers(self) -> dict:
         return {"Content-Type": "application/json"}
@@ -82,7 +84,7 @@ class HttpSystemOne(DecisionModel):
                                    f"see logs/{self.name}.log")
             if await self.health():
                 return
-            await asyncio.sleep(2)
+            await asyncio.sleep(0.5)
         raise TimeoutError(f"server not ready after {timeout:.0f}s; see logs/{self.name}.log")
 
     async def health(self) -> bool:
@@ -113,7 +115,20 @@ class HttpSystemOne(DecisionModel):
             subprocess.run(expand(self.spec["stop"], self.spec), shell=True, capture_output=True)
 
     def server_pid(self) -> int | None:
-        return self.proc.pid if self.proc else None
+        """The launched process, or for `docker run --name X` the container's init
+        process (the docker CLI's own RSS says nothing about the model)."""
+        if not self.proc:
+            return None
+        m = re.search(r"\bdocker run\b.*?--name[ =](\S+)", self.provenance.get("command", ""))
+        if not m:
+            return self.proc.pid
+        if self._container_pid is None:
+            out = subprocess.run(["docker", "inspect", "-f", "{{.State.Pid}}", m.group(1)],
+                                 capture_output=True, text=True).stdout.strip()
+            if out.isdigit() and int(out) > 0:
+                self._container_pid = int(out)
+                self.provenance["mem_source"] = "container"
+        return self._container_pid
 
     # ------------------------------------------------------------------ inference
     def build_request(self, case: Case) -> dict:
